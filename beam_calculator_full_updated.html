@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Beam Calculator — FBD · SFD · BMD (Clear & Validated)</title>
+<style>
+  :root { --bg:#0b0f14; --fg:#e8eef6; --muted:#9fb3c8; --accent:#4cc9f0; --grid:#22303e; --card:#101720; --ok:#7dd87d; --warn:#ffb703; --bad:#ff4757; --ansbg:#0f2a18; --ansbd:#2fbf71; }
+  html,body{height:100%;background:var(--bg);color:var(--fg);font:14px/1.45 Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;margin:0}
+  .wrap{max-width:1240px;margin:24px auto;padding:0 16px}
+  h1{font-size:22px;margin:0 0 12px}
+  .grid{display:grid;grid-template-columns:360px 1fr;gap:16px}
+  .card{background:var(--card);border:1px solid #16202b;border-radius:14px;padding:14px;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+  label{display:block;margin:8px 0 4px;color:var(--muted)}
+  select,input,button{width:100%;padding:10px;border-radius:10px;border:1px solid #1e2a36;background:#0f1722;color:var(--fg)}
+  button{background:linear-gradient(180deg,#2a3b4e,#1a2734);cursor:pointer}
+  button.primary{background:linear-gradient(180deg,#3fb2d8,#2a6f86);border-color:#2a6f86;color:#04151f;font-weight:600}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .tag{display:inline-block;padding:3px 8px;border-radius:999px;background:#152130;color:#9fd3ec;border:1px solid #254a64;font-size:12px}
+  .flex{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .list{margin-top:8px}
+  .list table{width:100%;border-collapse:collapse}
+  .list th,.list td{border-bottom:1px solid #1c2b3a;padding:6px 8px;text-align:left}
+  .list th{color:#9fb3c8;font-weight:600}
+  .canvases{display:grid;grid-template-columns:1fr;gap:12px}
+  canvas{width:100%;height:250px;background:#0d141d;border:1px solid #1a2835;border-radius:12px}
+  .mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;background:#0c1219;border:1px solid #172230;border-radius:10px;padding:12px;margin-top:8px;color:#d7e8f6}
+  .mono code{white-space:pre-wrap;display:block}
+  .ans{display:inline-block;padding:2px 8px;margin:0 2px;border:1.5px solid var(--ansbd);background:var(--ansbg);border-radius:8px;color:#c9f7dd;font-weight:700}
+  .inline-btn{padding:6px 10px;border-radius:8px;background:#0f1b28;border:1px solid #203245}
+  .muted{color:var(--muted)}
+  .hint{color:#9fb3c8;margin-top:6px}
+  .err{color:#ffd1d1;background:#3c1111;border:1px solid #8a2a2a;padding:8px;border-radius:10px;margin-top:8px}
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <h1>Beam Calculator — Free Body, SFD & BMD</h1>
+    <div class="grid">
+      <!-- Controls -->
+      <div class="card" id="controls">
+        <label>Beam type</label>
+        <select id="beamType">
+          <option value="cantilever">Cantilever (fixed at left)</option>
+          <option value="custom">Simply Supported (Custom)</option>
+        </select>
+        <div class="row">
+          <div>
+            <label>Length L (m)</label>
+            <input type="number" id="beamLen" placeholder="e.g. 10" min="0.5" step="0.1" />
+          </div>
+          <div>
+            <label>Resolution (plot points)</label>
+            <input type="number" id="res" placeholder="700" min="200" step="100" />
+          </div>
+        </div>
+
+        <div id="supports" class="card" style="margin-top:12px">
+          <div class="flex"><span class="tag">Supports</span><span class="muted">Positions along span</span></div>
+          <div class="row">
+            <div>
+              <label>Support A position x<sub>A</sub> (m)</label>
+              <input type="number" id="xa" placeholder="e.g. 0" step="0.1" />
+            </div>
+            <div>
+              <label>Support B position x<sub>B</sub> (m)</label>
+              <input type="number" id="xb" placeholder="e.g. 8" step="0.1" />
+            </div>
+          </div>
+          <div id="supportError" class="err" style="display:none"></div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="flex"><span class="tag">Point (Direct) Loads</span>
+            <button id="addP" class="inline-btn" type="button">+ Add point load</button>
+          </div>
+          <div class="list">
+            <table id="ptTable">
+              <thead><tr><th>P (kN, downward +)</th><th>x (m)</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px">
+          <div class="flex"><span class="tag">UDLs</span>
+            <button id="addW" class="inline-btn" type="button">+ Add UDL</button>
+          </div>
+          <div class="list">
+            <table id="udlTable">
+              <thead><tr><th>w (kN/m)</th><th>start x<sub>1</sub> (m)</th><th>end x<sub>2</sub> (m)</th><th></th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="row" style="margin-top:12px">
+          <button class="primary" id="calcBtn" type="button">Calculate</button>
+          <button id="clearBtn" type="button">Clear</button>
+        </div>
+        <div class="hint">Start by entering: beam type, L, supports (for custom), then loads.</div>
+      </div>
+
+      <!-- Visuals and Output -->
+      <div class="card">
+        <div class="canvases">
+          <div>
+            <div class="flex"><span class="tag">Beam Diagram</span><span class="muted">Supports, direct loads & UDLs</span></div>
+            <canvas id="beamCv" width="1100" height="250"></canvas>
+          </div>
+          <div>
+            <div class="flex"><span class="tag">Free Body Diagram (FBD)</span><span class="muted">Reactions under; loads on top</span></div>
+            <canvas id="fbdCv" width="1100" height="250"></canvas>
+          </div>
+          <div>
+            <div class="flex"><span class="tag">Shear Force Diagram (SFD)</span><span class="muted">Upward +</span></div>
+            <canvas id="sfdCv" width="1100" height="260"></canvas>
+          </div>
+          <div>
+            <div class="flex"><span class="tag">Bending Moment Diagram (BMD)</span><span class="muted">Sagging +</span></div>
+            <canvas id="bmdCv" width="1100" height="260"></canvas>
+          </div>
+        </div>
+        <div id="solution" class="mono"></div>
+      </div>
+    </div>
+  </div>
+
+<script>
+// ===== State (start blank) =====
+const state = {
+  type: 'custom', // or 'cantilever'
+  L: null,
+  xa: null,
+  xb: null,
+  points: [],
+  udls: [],
+  res: 700
+};
+
+// ===== DOM helpers =====
+const el = id => document.getElementById(id);
+function clamp(v,min,max){return Math.max(min, Math.min(max, v));}
+function fmt(n, d=3){ const val = (Math.abs(n)<1e-10?0:n); return Number(val).toFixed(d); }
+function ans(x, unit=''){ return `<span class="ans">${fmt(x)}${unit?` ${unit}`:''}</span>`; }
+
+// ===== Axis helpers =====
+function niceStep(maxAbs){
+  if(maxAbs<=0) return 1;
+  const raw = maxAbs/4; const pow = Math.pow(10, Math.floor(Math.log10(raw)));
+  const cand = [1,2,2.5,5,10].map(m=>m*pow);
+  let best=cand[0], diff=Infinity; for(const c of cand){ const d=Math.abs(raw-c); if(d<diff){diff=d;best=c;} } return best;
+}
+
+// ===== Loads summary & shear sided =====
+function totals(L, pts, udls){
+  let W = 0, M = 0; // about x=0
+  for(const p of pts){ W += p.P; M += p.P * p.x; }
+  for(const u of udls){ const R = u.w*(u.x2-u.x1); const xc = (u.x1+u.x2)/2; W += R; M += R*xc; }
+  return {W, M};
+}
+function V_side(state,R,x, includeAtX){
+  const {xa,xb,points,udls,type} = state; let v=0;
+  if(type==='cantilever'){
+    if(includeAtX && x>=0) v += R.RA; // entire span supported at left
+  } else {
+    if(x>xa || (includeAtX && x>=xa)) v += R.RA;
+    if(R.hasRB && (x>xb || (includeAtX && x>=xb))) v += R.RB;
+  }
+  for(const p of points){ if(x>p.x || (includeAtX && x>=p.x)) v -= p.P; }
+  for(const u of udls){ const left=Math.max(u.x1,0), right=Math.min(u.x2,x); if(right>left) v -= u.w*(right-left); }
+  return v;
+}
+
+// ===== Reactions =====
+function reactions(state){
+  const {type,L,xa,xb,points,udls} = state; if(L==null) return {RA:0,RB:0,hasRB:(type!=='cantilever'),Mfix:0,eqn:{Ma:'',Fy:''}};
+  const {W,M} = totals(L,points,udls);
+  if(type==='cantilever'){
+    return { RA: W, RB: 0, hasRB:false, Mfix: M, eqn:{
+      Fy:`ΣF_y: R - ${fmt(W)} = 0 ⇒ R = ${ans(W,'kN')}`,
+      M0:`ΣM_0 (CCW+): -M₀ + ${fmt(M)} = 0 ⇒ M₀ = ${ans(M,'kN·m')}` } };
+  }
+  // custom simply supported
+  const a=xa??0, b=xb??L; const span=b-a; let M_aboutA=0;
+  for(const p of points){ M_aboutA += p.P * ((p.x??0) - a); }
+  for(const u of udls){ const R = u.w*(u.x2-u.x1); const xc = (u.x1+u.x2)/2; M_aboutA += R*(xc - a); }
+  const RB = span>1e-9 ? M_aboutA/span : 0; const RA = W - RB;
+  const RBbox = ans(RB,'kN'); const RAbox = ans(RA,'kN');
+  return { RA, RB, hasRB:true, Mfix:0, eqn:{
+    Ma:`ΣM_A (CCW+): R_B(${fmt(span)}) − [ ${state.points.map(p=>`${fmt(p.P)}(${fmt((p.x??0)-a)})`).join(' + ')}${state.points.length&&state.udls.length?' + ':''}${state.udls.map(u=>`${fmt(u.w*(u.x2-u.x1))}(${fmt((u.x1+u.x2)/2 - a)})`).join(' + ')} ] = 0\n  ⇒ R_B = ${fmt(M_aboutA)} / ${fmt(span)} = ${RBbox}`,
+    Fy:`ΣF_y: R_A + R_B − ${fmt(W)} = 0\n  ⇒ R_A = ${fmt(W)} − ${fmt(RB)} = ${RAbox}` } };
+}
+
+// ===== Breakpoints =====
+function getBreakpoints(state){
+  const {type,L,xa,xb,points,udls} = state; if(L==null) return [];
+  const s = new Set([0, L]);
+  if(type !== 'cantilever'){
+    if(xa!=null) s.add(xa);
+    if(xb!=null) s.add(xb);
+  }
+  points.forEach(p => { if(p.x!=null) s.add(clamp(p.x,0,L)); });
+  udls.forEach(u => { s.add(clamp(u.x1,0,L)); s.add(clamp(u.x2,0,L)); });
+  return Array.from(s).sort((a,b)=>a-b);
+}
+
+// ===== Plot data (dense for curves) =====
+function buildVM(state, R){
+  const {L,res} = state; if(L==null) return {xs:[],V:[],M:[],bps:[],steps:[]};
+  const xs = Array.from({length:res+1}, (_,i)=> L*i/res);
+  const bps = getBreakpoints(state);
+  let V = new Array(xs.length).fill(0);
+  for(let i=0;i<xs.length;i++) V[i] = V_side(state,R,xs[i], true);
+  const dx=L/res; let M=new Array(xs.length).fill(0); M[0]=(state.type==='cantilever')?-R.Mfix:0; for(let i=1;i<xs.length;i++){ M[i]=M[i-1]+0.5*(V[i-1]+V[i])*dx; }
+  let steps=[]; for(let k=0;k<bps.length-1;k++){ const x1=bps[k], x2=bps[k+1]; const vL=V_side(state,R,x1,true); const vR=V_side(state,R,x2,false); const len=x2-x1; const area=0.5*(vL+vR)*len; const i1=Math.max(0, Math.floor((x1/L)*res)); const M1=M[i1]; const M2=M1+area; steps.push({x1,x2,vL,vR,len,area,M1,M2}); }
+  return {xs,V,M,bps,steps};
+}
+
+// ===== Concise working (areas under shear) =====
+function buildConcise(state, R){
+  const bps = getBreakpoints(state); const segs=[]; let rows=[]; if(bps.length===0) return {rows,segs};
+  let Mcurr = (state.type==='cantilever') ? -R.Mfix : 0;
+  for(let i=0;i<bps.length;i++){
+    const x=bps[i]; const Vminus=V_side(state,R,x,false); const Vplus=V_side(state,R,x,true); const dV=Vplus-Vminus; rows.push({x,Vminus,Vplus,dV,M:Mcurr});
+    if(i<bps.length-1){ const x1=bps[i],x2=bps[i+1]; const vL=V_side(state,R,x1,true); const vR=V_side(state,R,x2,false); const area=0.5*(vL+vR)*(x2-x1); Mcurr+=area; segs.push({x1,x2,vL,vR,area,Mto:Mcurr}); }
+  }
+  return {rows,segs};
+}
+
+// ===== Drawing helpers =====
+function drawGrid(ctx){ const w=ctx.canvas.width,h=ctx.canvas.height; ctx.clearRect(0,0,w,h); ctx.fillStyle='#0d141d'; ctx.fillRect(0,0,w,h); ctx.strokeStyle='#203142'; ctx.lineWidth=1; ctx.beginPath(); for(let y=0;y<=h;y+=24){ ctx.moveTo(0,y); ctx.lineTo(w,y);} ctx.stroke(); }
+function xToPx(x,L,canvas){ const pad=52; const w=canvas.width-2*pad; return pad + (x/L)*w; }
+function yToPx(y,canvas,scale){ const pad=18; const h=canvas.height-2*pad; const mid=pad+h/2; return mid - y*scale; }
+function drawPoly(ctx, xs, ys, stroke){ ctx.strokeStyle=stroke; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(xs[0], ys[0]); for(let i=1;i<xs.length;i++){ ctx.lineTo(xs[i], ys[i]); } ctx.stroke(); }
+function drawYAxis(ctx, maxAbs, unit, scale){ const h=ctx.canvas.height; const w=ctx.canvas.width; const padL=52; const padR=16; const padT=18; const padB=18; const zeroY=yToPx(0,ctx.canvas,scale); ctx.strokeStyle='#35516b'; ctx.lineWidth=1.25; ctx.beginPath(); ctx.moveTo(padL-10,padT); ctx.lineTo(padL-10,h-padB); ctx.stroke(); ctx.beginPath(); ctx.moveTo(padL-6,zeroY); ctx.lineTo(w-padR,zeroY); ctx.stroke(); const step=niceStep(maxAbs); ctx.fillStyle='#9fb3c8'; ctx.textAlign='right'; ctx.textBaseline='middle'; for(let s=0;s<=maxAbs+1e-6;s+=step){ const yyP=yToPx(+s,ctx.canvas,scale), yyN=yToPx(-s,ctx.canvas,scale); ctx.fillText((+s).toFixed(2),padL-14,yyP); if(s>0) ctx.fillText((-s).toFixed(2),padL-14,yyN);} ctx.fillText(unit,padL-14,12); }
+
+function drawBeamDiagram(state, R){ const cv=el('beamCv'); const ctx=cv.getContext('2d'); drawGrid(ctx); if(state.L==null){ ctx.fillStyle='#9fb3c8'; ctx.fillText('Enter inputs and click Calculate…', 20, 26); return; } const {L,xa,xb,points,udls,type}=state; const yMid=cv.height/2; const pad=52; const w=cv.width-2*pad; const x0=pad, x1=pad+w; ctx.strokeStyle='#4cc9f0'; ctx.lineWidth=6; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(x0,yMid); ctx.lineTo(x1,yMid); ctx.stroke(); ctx.fillStyle='#9fd3ec'; ctx.strokeStyle='#9fd3ec'; const tri=(x)=>{ ctx.beginPath(); ctx.moveTo(x,yMid+2); ctx.lineTo(x-12,yMid+22); ctx.lineTo(x+12,yMid+22); ctx.closePath(); ctx.fill(); }; if(type==='cantilever'){ const x=xToPx(0,L,cv); ctx.fillStyle='#8aa6bf'; ctx.fillRect(x-8,yMid-40,12,80); for(let i=0;i<7;i++){ ctx.strokeStyle='#294156'; ctx.beginPath(); ctx.moveTo(x-8,yMid-36+i*12); ctx.lineTo(x-18,yMid-28+i*12); ctx.stroke(); } } else { if(state.xa!=null) tri(xToPx(xa,L,cv)); if(state.xb!=null) tri(xToPx(xb,L,cv)); }
+  // UDLs
+  ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--ok'); ctx.fillStyle=ctx.strokeStyle; ctx.lineWidth=2; udls.forEach(u=>{ const xaP=xToPx(u.x1,L,cv), xbP=xToPx(u.x2,L,cv); ctx.beginPath(); ctx.moveTo(xaP,yMid-28); ctx.lineTo(xbP,yMid-28); ctx.stroke(); for(let x=xaP;x<=xbP;x+=18){ ctx.beginPath(); ctx.moveTo(x,yMid-28); ctx.lineTo(x,yMid-2); ctx.stroke(); } ctx.fillText(`${u.w} kN/m`, xaP+6, yMid-36); });
+  // Point loads (red, large, into beam)
+  ctx.save(); ctx.strokeStyle=getComputedStyle(document.documentElement).getPropertyValue('--bad'); ctx.fillStyle=ctx.strokeStyle; ctx.lineWidth=4; ctx.shadowColor='#ff6b6b88'; ctx.shadowBlur=6; points.forEach(p=>{ const x=xToPx(p.x,L,cv), yTop=yMid-80, yTip=yMid-2; ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yTip); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x-12,yTip-12); ctx.lineTo(x,yTip); ctx.lineTo(x+12,yTip-12); ctx.fill(); ctx.shadowBlur=0; ctx.fillText(`${p.P} kN`, x-22, yTop-8); ctx.shadowBlur=6; }); ctx.restore(); }
+
+function drawFBD(state,R){ const cv=el('fbdCv'); const ctx=cv.getContext('2d'); drawGrid(ctx); if(state.L==null){ ctx.fillStyle='#9fb3c8'; ctx.fillText('Awaiting inputs…', 20, 26); return; } const {L,xa,xb,points,udls,type}=state; const yMid=cv.height/2; const pad=52; const w=cv.width-2*pad; const X=(x)=> pad+(x/L)*w; ctx.strokeStyle='#4cc9f0'; ctx.lineWidth=4; ctx.beginPath(); ctx.moveTo(pad,yMid); ctx.lineTo(pad+w,yMid); ctx.stroke(); ctx.fillStyle='#e8eef6'; ctx.font='12px monospace'; udls.forEach(u=>{ const xaX=X(u.x1), xbX=X(u.x2); ctx.strokeStyle='#7dd87d'; ctx.beginPath(); ctx.moveTo(xaX,yMid-60); ctx.lineTo(xbX,yMid-60); ctx.stroke(); for(let x=xaX;x<=xbX;x+=20){ ctx.beginPath(); ctx.moveTo(x,yMid-60); ctx.lineTo(x,yMid-2); ctx.stroke(); } ctx.fillText(`${u.w} kN/m`, xaX+10,yMid-70); }); ctx.strokeStyle='#7dd87d'; ctx.fillStyle='#7dd87d'; const upBelow=(x,label)=>{ ctx.beginPath(); ctx.moveTo(x, yMid+60); ctx.lineTo(x, yMid-2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x-7, yMid-10); ctx.lineTo(x, yMid-2); ctx.lineTo(x+7, yMid-10); ctx.fill(); if(label) ctx.fillText(label, x-28, yMid+74); }; if(type==='cantilever'){ const x=X(0); upBelow(x, `R=${fmt(R.RA)} kN`); ctx.beginPath(); ctx.arc(x+22, yMid, 16, -Math.PI/2, Math.PI/2, false); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x+22, yMid+16); ctx.lineTo(x+18, yMid+8); ctx.lineTo(x+26, yMid+8); ctx.fill(); ctx.fillText(`M₀=${fmt(R.Mfix)} kN·m`, x+46,yMid+6); } else { if(state.xa!=null) upBelow(X(state.xa), `R_A=${fmt(R.RA)} kN`); if(state.xb!=null) upBelow(X(state.xb), `R_B=${fmt(R.RB)} kN`); } ctx.strokeStyle='#ff4757'; ctx.fillStyle='#ff4757'; ctx.lineWidth=4; ctx.shadowColor='#ff6b6bAA'; ctx.shadowBlur=6; points.forEach(p=>{ const x=X(p.x); const yTop=yMid-90, yTip=yMid-2; ctx.beginPath(); ctx.moveTo(x,yTop); ctx.lineTo(x,yTip); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x-12,yTip-12); ctx.lineTo(x,yTip); ctx.lineTo(x+12,yTip-12); ctx.fill(); ctx.shadowBlur=0; ctx.fillText(`${p.P} kN`, x-20,yTop-8); ctx.shadowBlur=6; }); }
+
+function drawSFD(xs,V,bps){ const cv=el('sfdCv'); const ctx=cv.getContext('2d'); drawGrid(ctx); if(xs.length===0){ ctx.fillStyle='#9fb3c8'; ctx.fillText('Awaiting inputs…', 20, 26); return; } const R=reactions(state); let allVals=V.slice(); bps.forEach(x=>{ allVals.push(V_side(state,R,x,false)); allVals.push(V_side(state,R,x,true)); }); const vmax=Math.max(1e-6,...allVals.map(Math.abs)); const scale=(cv.height-40)/(2*vmax); drawYAxis(ctx, vmax, 'kN', scale); const L=xs[xs.length-1]; ctx.strokeStyle='#f3a738'; ctx.lineWidth=2; ctx.beginPath(); const startMinus=V_side(state,R,0,false); const startPlus=V_side(state,R,0,true); ctx.moveTo(xToPx(0,L,cv), yToPx(startMinus, cv, scale)); ctx.lineTo(xToPx(0,L,cv), yToPx(startPlus , cv, scale)); for(let k=0;k<bps.length-1;k++){ const x1=bps[k], x2=bps[k+1]; const vL=V_side(state,R,x1,true); const vR=V_side(state,R,x2,false); ctx.lineTo(xToPx(x1,L,cv), yToPx(vL, cv, scale)); ctx.lineTo(xToPx(x2,L,cv), yToPx(vR, cv, scale)); const vRplus=V_side(state,R,x2,true); if(Math.abs(vRplus - vR) > 1e-10){ ctx.lineTo(xToPx(x2,L,cv), yToPx(vRplus, cv, scale)); } } ctx.stroke(); ctx.fillStyle='#e8eef6'; ctx.font='12px monospace'; ctx.textAlign='center'; bps.forEach(x=>{ const vminus=V_side(state,R,x,false); const vplus=V_side(state,R,x,true); const xx=xToPx(x, L, cv); ctx.beginPath(); ctx.arc(xx, yToPx(vminus, cv, scale), 2.5, 0, Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(xx, yToPx(vplus,  cv, scale), 2.5, 0, Math.PI*2); ctx.fill(); ctx.fillText(`${fmt(vminus,2)}-`, xx, yToPx(vminus, cv, scale)-10); if(Math.abs(vplus-vminus)>1e-9) ctx.fillText(`${fmt(vplus,2)}+`, xx, yToPx(vplus, cv, scale)-10); ctx.fillText(`${fmt(x,2)}m`, xx, cv.height-8); }); }
+
+function drawBMD(xs,M,bps){ const cv=el('bmdCv'); const ctx=cv.getContext('2d'); drawGrid(ctx); if(xs.length===0){ ctx.fillStyle='#9fb3c8'; ctx.fillText('Awaiting inputs…', 20, 26); return; } const mmax=Math.max(1e-6,...M.map(v=>Math.abs(v))); const scale=(cv.height-40)/(2*mmax); const px=xs.map(x=>xToPx(x, xs[xs.length-1], cv)); const py=M.map(v=>yToPx(v, cv, scale)); drawYAxis(ctx, mmax, 'kN·m', scale); drawPoly(ctx, px, py, '#8ecae6'); ctx.fillStyle='#e8eef6'; ctx.font='12px monospace'; ctx.textAlign='center'; bps.forEach(x=>{ const i=Math.round((x/xs[xs.length-1])*(xs.length-1)); const mx=M[i]; const xx=xToPx(x, xs[xs.length-1], cv); const yy=yToPx(mx, cv, scale); ctx.beginPath(); ctx.arc(xx,yy,3,0,Math.PI*2); ctx.fill(); ctx.fillText(`${fmt(mx,2)}`, xx, yy-10); ctx.fillText(`${fmt(x,2)}m`, xx, cv.height-8); }); }
+
+// ===== Worked solution =====
+function updateSolution(state, R){
+  const box = document.getElementById('solution');
+  if(state.L==null){ box.innerHTML = '<code>Enter inputs and press <b>Calculate</b> to see working.</code>'; return; }
+  const {W, M:MO} = totals(state.L, state.points, state.udls);
+  const {rows, segs} = buildConcise(state, R);
+  let html = `<code>`;
+  html += `<b>Equilibrium (CCW +)</b>\n`;
+  if(state.type==='cantilever') html += `${R.eqn.Fy}\n${R.eqn.M0}`; else html += `${R.eqn.Ma}\n${R.eqn.Fy}`;
+
+  html += `\n\n<b>Shear Jumps at Breakpoints</b> (only where something changes)\n`;
+  html += `x (m) | V(x⁻) kN | V(x⁺) kN | ΔV kN\n`;
+  html += `------|---------|---------|-------\n`;
+  rows.forEach(r=>{ html += `${fmt(r.x)} | ${ans(r.Vminus)} | ${ans(r.Vplus)} | ${ans(r.dV,'kN')}\n`; });
+
+  html += `\n<b>Bending Moment = Area under Shear between breakpoints</b>\n`;
+  html += `[x₁,x₂] | V(x₁⁺) | V(x₂⁻) | Δx | Area = ½(V₁+V₂)Δx | M(x₂)\n`;
+  html += `--------|--------|--------|-----|---------------------|-------\n`;
+  let Mprev = (state.type==='cantilever') ? -R.Mfix : 0;
+  segs.forEach(s=>{ html += `[${fmt(s.x1)},${fmt(s.x2)}] | ${ans(s.vL)} | ${ans(s.vR)} | ${ans(s.x2-s.x1,'m')} | ${ans(0.5*(s.vL+s.vR)*(s.x2-s.x1),'kN·m')} | ${ans(s.Mto,'kN·m')}\n`; Mprev = s.Mto; });
+
+  html += `\n<b>Totals</b>: W = ${ans(W,'kN')}; Resultant moment about 0 = ${ans(MO,'kN·m')}.\n`;
+  html += `<b>Sign convention</b>: Upward forces +; CCW moments +; sagging M +.`;
+  html += `</code>`;
+  box.innerHTML = html;
+}
+
+// ===== UI helpers =====
+function addPointRow(p={P:'',x:''}){ const tr=document.createElement('tr'); tr.innerHTML=`<td><input type=number step=0.1 value="${p.P}"></td><td><input type=number step=0.1 value="${p.x}"></td><td><button type=button class="inline-btn">Delete</button></td>`; tr.querySelector('button').onclick=()=>{tr.remove();}; el('ptTable').querySelector('tbody').appendChild(tr); }
+function addUDLRow(u={w:'',x1:'',x2:''}){ const tr=document.createElement('tr'); tr.innerHTML=`<td><input type=number step=0.1 value="${u.w}"></td><td><input type=number step=0.1 value="${u.x1}"></td><td><input type=number step=0.1 value="${u.x2}"></td><td><button type=button class="inline-btn">Delete</button></td>`; tr.querySelector('button').onclick=()=>{tr.remove();}; el('udlTable').querySelector('tbody').appendChild(tr); }
+
+function readTablesIntoState(){
+  state.type = el('beamType').value;
+  state.L = parseFloat(el('beamLen').value);
+  state.res = clamp(parseInt(el('res').value)||700, 200, 4000);
+  state.xa = (state.type==='cantilever') ? 0 : parseFloat(el('xa').value);
+  state.xb = (state.type==='cantilever') ? null : parseFloat(el('xb').value);
+
+  const err = el('supportError'); err.style.display='none'; err.textContent='';
+  // basic validation
+  if(!isFinite(state.L)) { err.style.display='block'; err.textContent='Please enter a valid beam length L.'; return false; }
+  if(state.type==='custom'){
+    if(!isFinite(state.xa)) { err.style.display='block'; err.textContent='Please enter Support A position x_A.'; return false; }
+    if(!isFinite(state.xb)) { err.style.display='block'; err.textContent='Please enter Support B position x_B.'; return false; }
+    if(state.xa < 0 || state.xa > state.L){ err.style.display='block'; err.textContent='x_A must lie within [0, L].'; return false; }
+    if(state.xb < 0 || state.xb > state.L){ err.style.display='block'; err.textContent='x_B must lie within [0, L].'; return false; }
+    if(state.xb <= state.xa){ err.style.display='block'; err.textContent='x_B must be greater than x_A.'; return false; }
+  }
+  // loads
+  const pRows=Array.from(el('ptTable').querySelectorAll('tbody tr'));
+  state.points=pRows.map(r=>({P:parseFloat(r.children[0].querySelector('input').value), x:parseFloat(r.children[1].querySelector('input').value)}))
+                   .filter(p=>isFinite(p.P) && isFinite(p.x));
+  const uRows=Array.from(el('udlTable').querySelectorAll('tbody tr'));
+  state.udls=uRows.map(r=>{ let w=parseFloat(r.children[0].querySelector('input').value); let x1=parseFloat(r.children[1].querySelector('input').value); let x2=parseFloat(r.children[2].querySelector('input').value); if(x2<x1){const t=x1;x1=x2;x2=t;} return {w,x1,x2}; })
+                  .filter(u=>isFinite(u.w) && isFinite(u.x1) && isFinite(u.x2) && u.x2>u.x1);
+  // final support rule: RB must not exceed L
+  if(state.type==='custom' && state.xb > state.L){ err.style.display='block'; err.textContent='Support B (x_B) cannot be greater than beam length L.'; return false; }
+  return true;
+}
+
+function renderAll(){
+  const R = reactions(state);
+  const built = buildVM(state, R);
+  drawBeamDiagram(state, R);
+  drawFBD(state, R);
+  drawSFD(built.xs, built.V, built.bps);
+  drawBMD(built.xs, built.M, built.bps);
+  updateSolution(state, R);
+}
+
+// Wire up controls
+el('addP').onclick = ()=> addPointRow();
+el('addW').onclick = ()=> addUDLRow();
+el('clearBtn').onclick = ()=>{ el('beamLen').value=''; el('res').value=''; el('xa').value=''; el('xb').value=''; el('ptTable').querySelector('tbody').innerHTML=''; el('udlTable').querySelector('tbody').innerHTML=''; Object.assign(state,{L:null,xa:null,xb:null,points:[],udls:[]}); renderAll(); };
+el('calcBtn').onclick = ()=>{ if(readTablesIntoState()){ renderAll(); } };
+
+// First paint (blank)
+(function init(){ renderAll(); })();
+</script>
+</body>
+</html>
