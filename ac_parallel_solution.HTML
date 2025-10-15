@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Parallel C ‖ (R + jωL) — Worked Solution + Phasor & Power</title>
+<style>
+  :root{
+    --bg:#0b1220; --card:#111a2c; --ink:#ecf1ff; --muted:#9fb0d1; --accent:#5aa0ff; --ok:#7ee787; --warn:#ffb454;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --sans: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, "Noto Sans";
+  }
+  *{box-sizing:border-box}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--sans);}
+  .wrap{max-width:1220px; margin:28px auto; padding:0 16px;}
+  h1{font-size:1.6rem; margin:0 0 18px}
+  .grid{display:grid; gap:14px; grid-template-columns: repeat(auto-fit, minmax(260px,1fr));}
+  .card{background:var(--card); border:1px solid #1e2a43; border-radius:14px; padding:16px; box-shadow:0 8px 24px rgba(0,0,0,.25);}
+  .card h2{margin:0 0 10px; font-size:1.05rem; color:var(--muted); font-weight:600}
+  label{display:block; font-size:.9rem; color:var(--muted); margin:8px 0 6px}
+  .row{display:flex; gap:8px; align-items:center}
+  input[type="number"]{width:100%; padding:10px 12px; border-radius:10px; border:1px solid #27406a; background:#0b1426; color:var(--ink); font-family:var(--mono)}
+  select{padding:10px 12px; border-radius:10px; border:1px solid #27406a; background:#0b1426; color:var(--ink); font-family:var(--mono)}
+  .note{color:var(--muted); font-size:.85rem; margin-top:6px}
+  .eqn{font-family:var(--mono); white-space:pre-wrap; line-height:1.45; background:#0c1529; border:1px solid #23365a; border-radius:12px; padding:14px;}
+  .btnbar{display:flex; gap:10px; flex-wrap:wrap; margin-top:12px}
+  button{background:var(--accent); color:#061325; border:none; padding:10px 14px; border-radius:10px; font-weight:700; cursor:pointer}
+  button.secondary{background:#223555; color:var(--ink); border:1px solid #2c4b7d}
+  .small{font-size:.92rem}
+  footer{margin:24px 0 8px; color:var(--muted); font-size:.85rem}
+  .two{display:grid; grid-template-columns:1fr; gap:14px}
+  @media (min-width:980px){ .two{grid-template-columns:1fr 1fr} }
+  .legend{font-size:.85rem; color:var(--muted)}
+  canvas{width:100%; height:auto; background:#0b1426; border:1px solid #23365a; border-radius:12px;}
+  .flex{display:flex; gap:12px; flex-wrap:wrap; align-items:center}
+  .topbar{display:flex; gap:10px; flex-wrap:wrap; align-items:center; margin-bottom:14px}
+
+  /* Print layout for clean PDF via browser print */
+  @media print{
+    body{background:#fff; color:#000}
+    .wrap{max-width:none; margin:0; padding:0}
+    .card{border:1px solid #999; background:#fff; color:#000; box-shadow:none; break-inside:avoid}
+    .eqn{background:#fff; border:1px solid #bbb; color:#000}
+    .btnbar,.topbar, footer{display:none !important}
+    canvas{border:1px solid #bbb}
+  }
+</style>
+</head>
+<body>
+<div class="wrap" id="doc">
+  <div class="topbar">
+    <button id="calc">Calculate</button>
+    <button id="reset" class="secondary">Reset to Zeros</button>
+    <button id="print">Download PDF (Print)</button>
+    <button id="exportPDF" class="secondary">Export PDF (Beta)</button>
+    <div class="note small">Tip: Set values, click <b>Calculate</b>, then <b>Download PDF</b>.</div>
+  </div>
+
+  <h1>Parallel Network: Capacitor in Parallel with Coil (R + jωL)</h1>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Inputs</h2>
+
+      <label>Supply Voltage V</label>
+      <div class="row">
+        <input type="number" id="V" step="0.001" value="0">
+        <select id="V_unit">
+          <option value="1" selected>V</option>
+          <option value="0.001">mV</option>
+        </select>
+      </div>
+
+      <label>Frequency f</label>
+      <div class="row">
+        <input type="number" id="f" step="0.001" value="0">
+        <select id="f_unit">
+          <option value="1" selected>Hz</option>
+        </select>
+      </div>
+
+      <label>Resistance (coil) R</label>
+      <div class="row">
+        <input type="number" id="R" step="0.001" value="0">
+        <select id="R_unit">
+          <option value="1" selected>Ω</option>
+          <option value="1000">kΩ</option>
+        </select>
+      </div>
+
+      <label>Inductance (coil) L</label>
+      <div class="row">
+        <input type="number" id="L" step="0.000001" value="0">
+        <select id="L_unit">
+          <option value="1" selected>H</option>
+          <option value="0.001">mH</option>
+        </select>
+      </div>
+
+      <label>Capacitance C</label>
+      <div class="row">
+        <input type="number" id="C" step="0.000001" value="0">
+        <select id="C_unit">
+          <option value="1" selected>F</option>
+          <option value="0.001">mF</option>
+          <option value="0.000001">μF</option>
+          <option value="0.000000001">nF</option>
+        </select>
+      </div>
+
+      <div class="note small">
+        Output current display unit:
+        <span class="row" style="margin-top:6px;">
+          <select id="I_display_unit">
+            <option value="1" selected>A</option>
+            <option value="0.001">mA</option>
+          </select>
+        </span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Quick Summary</h2>
+      <div class="eqn small" id="summary">—</div>
+    </div>
+  </div>
+
+  <div class="two">
+    <div class="card">
+      <h2>Worked Solution (Step-by-Step)</h2>
+      <div class="eqn" id="work">—</div>
+    </div>
+
+    <div class="card">
+      <h2>Details & Power</h2>
+      <div class="eqn small" id="details">—</div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h2>Phasor Diagram (V is the reference)</h2>
+    <div class="legend">Shows V along +x, and I<sub>S</sub>, I<sub>LR</sub>, I<sub>C</sub> with magnitudes and angles. α = ∠I<sub>S</sub> relative to V.</div>
+    <div class="flex">
+      <canvas id="phasor" width="820" height="420"></canvas>
+    </div>
+  </div>
+
+  <footer>If you prefer π and ∠ symbols throughout, I can switch the text rendering to those symbols too.</footer>
+</div>
+
+<!-- Optional PDF libs for client-side export (Beta) -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+
+<script>
+(function(){
+  const $ = id => document.getElementById(id);
+
+  function toSI(value, factor){ return Number(value) * Number(factor); }
+
+  // Complex helpers
+  const Cx = {
+    rect:(r,i)=>({r,i}),
+    add:(a,b)=>({r:a.r+b.r, i:a.i+b.i}),
+    div:(a,b)=>{ const d=b.r*b.r+b.i*b.i; return {r:(a.r*b.r+a.i*b.i)/d, i:(a.i*b.r-a.r*b.i)/d}; },
+    mag:(a)=>Math.hypot(a.r,a.i),
+    ang:(a)=>Math.atan2(a.i,a.r), // radians
+  };
+
+  function fmt(x, dp=3){
+    if (!isFinite(x)) return '—';
+    const s = x.toFixed(dp);
+    return s.replace(/(\.\d*?[1-9])0+$/,'$1').replace(/\.0+$/,'');
+  }
+  const asOhm = x => `${fmt(x)} Ω`;
+  const asA   = x => `${fmt(x)} A`;
+  const asV   = x => `${fmt(x)} V`;
+  const deg   = x => `${fmt(x,2)}°`;
+
+  // mA-style "143×10^-3" expression if current is in a sensible mA range
+  function milliExpr(A_value){
+    const mA = A_value*1000;
+    if (mA >= 1 && mA < 10000) return `${fmt(mA,0)}×10^-3`;
+    return fmt(A_value,3);
+  }
+
+  function drawPhasor(canvas, V, ILR, IC, IS, ISangDeg){
+    const ctx = canvas.getContext('2d');
+    const w = canvas.width, h = canvas.height;
+    ctx.clearRect(0,0,w,h);
+
+    const cx = w/2, cy = h/2;
+
+    const ILRmag = Cx.mag(ILR), ICmag = Cx.mag(IC), ISmag = Cx.mag(IS);
+    const Imax = Math.max(ILRmag, ICmag, ISmag, 1e-12);
+    const Iscale = 180 / (Imax || 1); // avoid div by zero
+    const Vpx = 260;
+
+    // axes
+    ctx.strokeStyle = '#2b466f';
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(40, cy);
+    ctx.lineTo(w-20, cy);
+    ctx.moveTo(cx, 20);
+    ctx.lineTo(cx, h-20);
+    ctx.stroke();
+
+    function arrowFromCenter(len, angleRad, color){
+      const x2 = cx + len*Math.cos(angleRad);
+      const y2 = cy - len*Math.sin(angleRad);
+      ctx.strokeStyle = color; ctx.fillStyle = color;
+      ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(x2,y2); ctx.stroke();
+      const ah = 10, aw = 6;
+      const ang = angleRad;
+      ctx.beginPath();
+      ctx.moveTo(x2,y2);
+      ctx.lineTo(x2 - ah*Math.cos(ang) + aw*Math.sin(ang), y2 + ah*Math.sin(ang) + aw*Math.cos(ang));
+      ctx.lineTo(x2 - ah*Math.cos(ang) - aw*Math.sin(ang), y2 + ah*Math.sin(ang) - aw*Math.cos(ang));
+      ctx.closePath(); ctx.fill();
+      return {x:x2, y:y2};
+    }
+    function labelAt(x,y,text,color){
+      ctx.fillStyle = color;
+      ctx.font = '12px monospace';
+      ctx.fillText(text, x+6, y-6);
+    }
+
+    // V reference (if V=0, still draw a short stub)
+    const Vdraw = Math.max(40, (V>0?V:1) * 0 + 240); // fixed display
+    const Vend = arrowFromCenter(Vdraw, 0, '#5aa0ff');
+    labelAt(Vend.x, Vend.y, `V = ${fmt(V)} V ∠ 0°`, '#5aa0ff');
+
+    // Branch & total currents (if zero, draw tiny stubs to place labels)
+    const drawArrow = (mag, angRad, color, label) => {
+      const len = Math.max( mag*Iscale, 1 ); // ensure visible
+      const end = arrowFromCenter(len, angRad, color);
+      labelAt(end.x, end.y, label, color);
+    };
+
+    const angILR = Cx.ang(ILR), ILRmagV = Cx.mag(ILR);
+    drawArrow(ILRmagV, angILR, '#f2a2ff', `I_LR = ${asA(ILRmagV)} ∠ ${deg(angILR*180/Math.PI)}`);
+
+    const angIC = Cx.ang(IC), ICmagV = Cx.mag(IC);
+    drawArrow(ICmagV, angIC, '#ffd166', `I_C = ${asA(ICmagV)} ∠ ${deg(angIC*180/Math.PI)}`);
+
+    const angIS = Cx.ang(IS), ISmagV = Cx.mag(IS);
+    drawArrow(ISmagV, angIS, '#7ee787', `I_S = ${asA(ISmagV)} ∠ ${deg(ISangDeg)}`);
+
+    // α arc (only if non-zero)
+    if (ISmagV>0){
+      ctx.strokeStyle = '#ffb454';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const r = 48;
+      const ang = angIS; // radians
+      ctx.arc(cx, cy, r, 0, ang, ang<0);
+      ctx.stroke();
+      ctx.fillStyle = '#ffb454';
+      ctx.font = '12px monospace';
+      ctx.fillText(`α = ${deg(ISangDeg)}`, cx + r + 12, cy - 6);
+    }
+  }
+
+  function calc(){
+    // Inputs => SI
+    const V  = toSI($('V').value, $('V_unit').value);          // V
+    const f  = toSI($('f').value, $('f_unit').value);          // Hz
+    const R  = toSI($('R').value, $('R_unit').value);          // Ω
+    const L  = toSI($('L').value, $('L_unit').value);          // H
+    const C  = toSI($('C').value, $('C_unit').value);          // F
+    const IoutUnit = Number($('I_display_unit').value);        // 1 or 0.001
+
+    const warn = [];
+    if (!(V>0)) warn.push('V must be > 0.');
+    if (!(f>0)) warn.push('f must be > 0.');
+    if (!(R>=0)) warn.push('R must be ≥ 0.');
+    if (!(L>=0)) warn.push('L must be ≥ 0.');
+    if (!(C>=0)) warn.push('C must be ≥ 0.');
+
+    const omega = 2*Math.PI*(f||0);
+    const XL = omega*L;                         // Ω
+    const XC = (C>0 && omega>0) ? 1/(omega*C) : Infinity;  // Ω
+
+    // Impedances
+    const ZLR = Cx.rect(R, XL);     // R + jXL
+    const ZC  = Cx.rect(0, -XC);    // -j XC
+
+    // Branch currents (V is reference on real axis)
+    const Vp = Cx.rect(V, 0);
+    const ZLR_zero = (R===0 && XL===0);
+    const ILR = ZLR_zero ? Cx.rect(0,0) : Cx.div(Vp, ZLR);
+    const IC  = (!isFinite(XC)) ? Cx.rect(0,0) : Cx.div(Vp, ZC);
+    const IS  = Cx.add(ILR, IC);
+
+    // Magnitudes & angles
+    const ZLRmag = Math.hypot(R, XL);
+    const ZLRang = (ZLRmag===0) ? 0 : Math.atan2(XL, R)*180/Math.PI;
+    const ILRmag = Cx.mag(ILR), ILRangDeg = (ILRmag===0) ? 0 : Cx.ang(ILR)*180/Math.PI;
+    const ICmag  = Cx.mag(IC),  ICangDeg  = (ICmag===0)  ? 0 : Cx.ang(IC )*180/Math.PI;
+    const ISmag  = Cx.mag(IS),  ISangDeg  = (ISmag===0)  ? 0 : Cx.ang(IS )*180/Math.PI;
+
+    // Power (RMS values)
+    const P = V * ISmag * Math.cos(ISangDeg*Math.PI/180) || 0; // W
+    const Q = V * ISmag * Math.sin(ISangDeg*Math.PI/180) || 0; // VAr
+    const S = V * ISmag || 0;                                  // VA
+
+    // Display current unit scaling for summary (A/mA)
+    const IdispMag = ISmag / IoutUnit;
+    const IunitLbl = (IoutUnit===1) ? 'A' : 'mA';
+
+    // Summary
+    const summary = (warn.length>0 && (V===0 || f===0))
+      ? `⚠️ ${warn.join(' ')}`
+      : `Supply current and phase:
+|I_S| = ${fmt(IdispMag)} ${IunitLbl} ,  ∠I_S = ${deg(ISangDeg)}
+P = ${fmt(P,3)} W   •   Q = ${fmt(Q,3)} VAr   •   S = ${fmt(S,3)} VA`;
+    $('summary').textContent = summary;
+
+    // Worked steps — base units throughout
+    const work = [
+`XL = 2π f L
+   = 2π × ${fmt(f)} × ${fmt(L)} = ${asOhm(XL)}
+
+ZLR = ${fmt(R)} + j${fmt(XL)} Ω
+
+Convert to polar form:
+|ZLR| ∠ θ = ${asOhm(ZLRmag)} ∠ ${deg(ZLRang)}
+
+ILR = V / ZLR
+    = (${asV(V)} ∠ 0°) / (${fmt(ZLRmag)} ∠ ${deg(ZLRang)})
+    = ${asA(ILRmag)} ∠ ${deg(ILRangDeg)}
+
+XC = 1 / (2π f C)
+   = 1 / (2π × ${fmt(f)} × ${fmt(C)})
+   = ${asOhm(XC)} ∠ −90°
+(IC uses ZC = ${asOhm(XC)} ∠ −90°)
+
+IC = V / ZC
+   = (${asV(V)} ∠ 0°) / (${fmt(XC)} ∠ −90°)
+   = ${asA(ICmag)} ∠ ${deg(ICangDeg)}
+
+Convert both currents to rectangular form:
+ILR = ${fmt(ILR.r)} + j${fmt(ILR.i)} A
+IC  = ${fmt(IC.r)}  + j${fmt(IC.i)}  A
+
+Add together:
+IS = ${fmt(IS.r)} + j${fmt(IS.i)} A
+
+Convert to polar form:
+IS = ${asA(ISmag)} ∠ ${deg(ISangDeg)}`
+    ].join('\n');
+
+    $('work').textContent = work;
+
+    // Power details + your exact substitution lines
+    const ISmagMilliExpr = milliExpr(ISmag);
+    const alphaRounded = fmt(ISangDeg,1);
+    const details = [
+`ω = 2πf = ${fmt(2*Math.PI*(f||0))} rad/s
+XL = ωL = ${asOhm(XL)}     XC = 1/(ωC) = ${asOhm(XC)}
+ZLR(rect) = ${fmt(R)} + j${fmt(XL)} Ω
+Zc(rect)  = 0 − j${fmt(XC)} Ω
+
+|ILR| = ${asA(ILRmag)} ,  ∠ILR = ${deg(ILRangDeg)}
+|IC | = ${asA(ICmag )} ,  ∠IC  = ${deg(ICangDeg )}
+|IS | = ${asA(ISmag )} ,  ∠IS  = ${deg(ISangDeg)}
+
+Power (RMS):
+P = V |I_S| cos α
+  = ${asV(V)} × ${asA(ISmag)} × cos(${deg(ISangDeg)})
+  = ${fmt(P,3)} W
+
+Q = V |I_S| sin α
+  = ${asV(V)} × ${asA(ISmag)} × sin(${deg(ISangDeg)})
+  = ${fmt(Q,3)} VAr
+
+S = V |I_S|
+  = ${asV(V)} × ${asA(ISmag)}
+  = ${fmt(S,3)} VA
+
+Your requested substitution style:
+P = I V cos α  = ${ISmagMilliExpr}×10^-3 × ${fmt(V,0)} × cos ${alphaRounded} = ${fmt(P,1)} W
+Q = I V sin α  = ${ISmagMilliExpr}×10^-3 × ${fmt(V,0)} × sin ${alphaRounded} = ${fmt(Q,1)} VAr
+S = I V        = ${ISmagMilliExpr}×10^-3 × ${fmt(V,0)} = ${fmt(S,1)} VA`
+    ].join('\n');
+
+    $('details').textContent = details;
+
+    // Phasor diagram with labels
+    drawPhasor($('phasor'), V, ILR, IC, IS, ISangDeg);
+  }
+
+  // Buttons
+  $('calc').addEventListener('click', calc);
+  $('reset').addEventListener('click', ()=>{
+    ['V','f','R','L','C'].forEach(id=>$(id).value=0);
+    $('V_unit').value = 1; $('f_unit').value=1;
+    $('R_unit').value = 1; $('L_unit').value=1; $('C_unit').value=1;
+    $('I_display_unit').value = 1;
+    calc();
+  });
+  $('print').addEventListener('click', ()=> window.print());
+
+  // Client-side PDF export (Beta)
+  $('exportPDF').addEventListener('click', async ()=>{
+    const docEl = document.getElementById('doc');
+    const canvas = await html2canvas(docEl, {scale:2, backgroundColor:'#ffffff'});
+    const imgData = canvas.toDataURL('image/png');
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('p','pt','a4');
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const pageHeight = pdf.internal.pageSize.getHeight();
+    // Fit image to width, scale height
+    const imgWidth = pageWidth - 40;
+    const imgHeight = canvas.height * imgWidth / canvas.width;
+
+    let y = 20;
+    if (imgHeight < pageHeight - 40){
+      pdf.addImage(imgData, 'PNG', 20, y, imgWidth, imgHeight);
+    } else {
+      let remaining = imgHeight;
+      let srcY = 0;
+      const sliceHeight = canvas.width * (pageHeight - 40) / imgWidth;
+      while (remaining > 0){
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = canvas.width;
+        sliceCanvas.height = Math.min(sliceHeight, remaining);
+        const sctx = sliceCanvas.getContext('2d');
+        sctx.drawImage(canvas, 0, srcY, canvas.width, sliceCanvas.height, 0, 0, canvas.width, sliceCanvas.height);
+        const sliceImg = sliceCanvas.toDataURL('image/png');
+        pdf.addImage(sliceImg, 'PNG', 20, 20, imgWidth, sliceCanvas.height * imgWidth / canvas.width);
+        remaining -= sliceHeight;
+        srcY += sliceHeight;
+        if (remaining > 0) pdf.addPage();
+      }
+    }
+    pdf.save('AC_parallel_solution.pdf');
+  });
+
+  // Auto-init with zeros
+  calc();
+})();
+</script>
+</body>
+</html>
