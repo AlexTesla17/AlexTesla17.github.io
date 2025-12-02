@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>NMA Certificate Verification</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    :root {
+      --nma-blue-dark: #004c7f;
+      --nma-blue-mid: #0066a1;
+      --bg-page: #f3f4f6;
+      --text-main: #111827;
+      --text-soft: #6b7280;
+      --good: #15803d;
+      --bad: #b91c1c;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top, #e5f3ff 0, #f3f4f6 40%, #e5e7eb 100%);
+      color: var(--text-main);
+    }
+
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+
+    .shell {
+      width: 100%;
+      max-width: 640px;
+      background: #ffffff;
+      border-radius: 16px;
+      box-shadow:
+        0 20px 45px rgba(15, 23, 42, 0.20),
+        0 0 0 1px rgba(148, 163, 184, 0.25);
+      overflow: hidden;
+    }
+
+    header {
+      padding: 14px 20px;
+      border-bottom: 4px solid var(--nma-blue-mid);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      background: linear-gradient(135deg, #ffffff, #e0f2fe);
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .brand-logo {
+      width: 48px;
+      height: 48px;
+      border-radius: 12px;
+      background: radial-gradient(circle at 30% 20%, #ffffff 0, #bfdbfe 40%, #60a5fa 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      color: #0f172a;
+      font-size: 1.2rem;
+    }
+
+    .brand-text-main {
+      font-size: 0.9rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.12em;
+      color: var(--nma-blue-dark);
+    }
+
+    .brand-text-sub {
+      font-size: 0.8rem;
+      color: var(--text-soft);
+    }
+
+    .header-side {
+      text-align: right;
+      font-size: 0.75rem;
+      color: var(--text-soft);
+    }
+
+    main {
+      padding: 20px 20px 18px;
+    }
+
+    .status-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      flex-wrap: wrap;
+    }
+
+    .status-icon {
+      width: 52px;
+      height: 52px;
+      border-radius: 999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2rem;
+      flex-shrink: 0;
+    }
+
+    .status-icon.good {
+      background: #dcfce7;
+      color: var(--good);
+    }
+
+    .status-icon.bad {
+      background: #fee2e2;
+      color: var(--bad);
+    }
+
+    .status-text-main {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+
+    .status-text-main.good {
+      color: var(--good);
+    }
+
+    .status-text-main.bad {
+      color: var(--bad);
+    }
+
+    .status-text-sub {
+      font-size: 0.85rem;
+      color: var(--text-soft);
+      margin-top: 2px;
+    }
+
+    .details-card {
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      background: #f9fafb;
+      padding: 12px 14px;
+      margin-bottom: 12px;
+      font-size: 0.9rem;
+    }
+
+    .details-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 4px 0;
+      border-bottom: 1px dashed #e5e7eb;
+    }
+
+    .details-row:last-child {
+      border-bottom: none;
+    }
+
+    .details-label {
+      font-weight: 600;
+      color: var(--text-soft);
+      min-width: 120px;
+    }
+
+    .details-value {
+      text-align: right;
+      font-weight: 500;
+    }
+
+    .note {
+      font-size: 0.8rem;
+      color: var(--text-soft);
+      margin-top: 4px;
+    }
+
+    .contact {
+      margin-top: 10px;
+      font-size: 0.88rem;
+    }
+
+    .contact strong {
+      font-weight: 600;
+    }
+
+    .contact span.tel {
+      font-family: "SF Mono", ui-monospace, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    }
+
+    .warning-box {
+      border-radius: 10px;
+      border: 1px solid #fecaca;
+      background: #fef2f2;
+      padding: 10px 12px;
+      font-size: 0.86rem;
+      color: var(--bad);
+      margin-top: 8px;
+    }
+
+    .info-box {
+      border-radius: 10px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      padding: 10px 12px;
+      font-size: 0.86rem;
+      color: #1d4ed8;
+      margin-top: 8px;
+    }
+
+    .code-hint {
+      margin-top: 8px;
+      font-size: 0.78rem;
+      color: var(--text-soft);
+      text-align: right;
+    }
+
+    .code-hint code {
+      background: #111827;
+      color: #e5e7eb;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-size: 0.75rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header>
+      <div class="brand">
+        <!-- Replace with logo image if you prefer -->
+        <div class="brand-logo">NMA</div>
+        <div>
+          <div class="brand-text-main">National Maritime Academy</div>
+          <div class="brand-text-sub">Certificate Verification</div>
+        </div>
+      </div>
+      <div class="header-side">
+        <div id="headerDate">--</div>
+        <div id="headerTime">--:--:--</div>
+      </div>
+    </header>
+
+    <main>
+      <!-- Status section -->
+      <div class="status-row">
+        <div id="statusIcon" class="status-icon bad">
+          ✗
+        </div>
+        <div>
+          <div id="statusMain" class="status-text-main bad">Not verified</div>
+          <div id="statusSub" class="status-text-sub">
+            Certificate not found. Please contact the academy.
+          </div>
+        </div>
+      </div>
+
+      <!-- Details section (filled by JS if record exists) -->
+      <div id="detailsCard" class="details-card" style="display:none;">
+        <div class="details-row">
+          <div class="details-label">Certificate number</div>
+          <div id="certNumber" class="details-value">—</div>
+        </div>
+        <div class="details-row">
+          <div class="details-label">Forename</div>
+          <div id="certForename" class="details-value">—</div>
+        </div>
+        <div class="details-row">
+          <div class="details-label">Surname</div>
+          <div id="certSurname" class="details-value">—</div>
+        </div>
+        <div class="details-row">
+          <div class="details-label">Date of issue</div>
+          <div id="certIssue" class="details-value">—</div>
+        </div>
+        <div class="details-row">
+          <div class="details-label">Expiry</div>
+          <div id="certExpiry" class="details-value">—</div>
+        </div>
+      </div>
+
+      <div id="validityNote" class="note"></div>
+
+      <!-- Messages for not verified / expired -->
+      <div id="messageBox"></div>
+
+      <div class="contact">
+        <strong>Contact the academy:</strong>
+        <span class="tel">+966 0123456789</span>
+      </div>
+
+      <div class="code-hint">
+        <!-- Optional small hint for you / IT team, users will ignore this -->
+        <span id="certHint"></span>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    // 1. --- CONFIG: YOUR CERTIFICATE DATA ---
+    //
+    // Copy your Excel data here as an array of objects.
+    // IMPORTANT:
+    //   - expiry and dateOfIssue should be in YYYY-MM-DD format
+    //   - certificateNumber values must match what you put in the QR link (?cert=...)
+    //
+    // Example rows (REPLACE with your real data):
+    const certificates = [
+      {
+        certificateNumber: "NMA-0001",
+        forename: "Ali",
+        surname: "Al-Shehri",
+        dateOfIssue: "2025-01-15",
+        expiry: "2028-01-14"
+      },
+      {
+        certificateNumber: "NMA-0002",
+        forename: "Sara",
+        surname: "Khan",
+        dateOfIssue: "2024-06-01",
+        expiry: "2027-05-31"
+      },
+      {
+        certificateNumber: "TEST-EXPIRED",
+        forename: "John",
+        surname: "Doe",
+        dateOfIssue: "2020-01-01",
+        expiry: "2023-12-31"
+      }
+    ];
+
+    // 2. --- HELPER FUNCTIONS ---
+
+    function pad(n) {
+      return n.toString().padStart(2, "0");
+    }
+
+    function getTodayDateOnly() {
+      const now = new Date();
+      // Ignore time-of-day for expiry comparison
+      return new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    }
+
+    function parseISODate(dateStr) {
+      // Expects "YYYY-MM-DD"
+      if (!dateStr) return null;
+      const parts = dateStr.split("-");
+      if (parts.length !== 3) return null;
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      const d = new Date(year, month, day);
+      return isNaN(d.getTime()) ? null : d;
+    }
+
+    function formatLongDate(d) {
+      if (!d) return "—";
+      return d.toLocaleDateString(undefined, {
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
+    }
+
+    function updateHeaderClock() {
+      const now = new Date();
+      const dateStr = now.toLocaleDateString(undefined, {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric"
+      });
+      const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(
+        now.getSeconds()
+      )}`;
+      document.getElementById("headerDate").textContent = dateStr;
+      document.getElementById("headerTime").textContent = timeStr;
+    }
+
+    // 3. --- MAIN LOGIC ---
+
+    function verifyCertificate() {
+      const params = new URLSearchParams(window.location.search);
+      const certParam = (params.get("cert") || "").trim();
+
+      const statusIcon = document.getElementById("statusIcon");
+      const statusMain = document.getElementById("statusMain");
+      const statusSub = document.getElementById("statusSub");
+      const detailsCard = document.getElementById("detailsCard");
+      const validityNote = document.getElementById("validityNote");
+      const messageBox = document.getElementById("messageBox");
+      const certHint = document.getElementById("certHint");
+
+      messageBox.innerHTML = "";
+      validityNote.textContent = "";
+      certHint.textContent = "";
+
+      if (!certParam) {
+        // No certificate number in URL
+        statusIcon.className = "status-icon bad";
+        statusIcon.textContent = "✗";
+        statusMain.className = "status-text-main bad";
+        statusMain.textContent = "Not verified";
+        statusSub.textContent =
+          "No certificate number was provided. Please scan a valid QR code or contact the academy.";
+        detailsCard.style.display = "none";
+
+        // Optional small hint for IT/admin
+        certHint.textContent = "No ?cert= parameter detected in the URL.";
+        return;
+      }
+
+      // Show the cert param in the hint for debugging / admin
+      certHint.innerHTML = `Certificate requested: <code>${certParam}</code>`;
+
+      // Find matching certificate (case-insensitive)
+      const record = certificates.find(
+        (c) => c.certificateNumber.toLowerCase() === certParam.toLowerCase()
+      );
+
+      if (!record) {
+        // Record does not exist
+        statusIcon.className = "status-icon bad";
+        statusIcon.textContent = "✗";
+        statusMain.className = "status-text-main bad";
+        statusMain.textContent = "Not verified";
+        statusSub.textContent =
+          "No matching certificate was found in the academy records.";
+
+        detailsCard.style.display = "none";
+
+        const warning = document.createElement("div");
+        warning.className = "warning-box";
+        warning.textContent =
+          "Record not verified. Please contact the academy on +966 0123456789 for further assistance.";
+        messageBox.appendChild(warning);
+
+        return;
+      }
+
+      // Record exists: fill details
+      document.getElementById("certNumber").textContent = record.certificateNumber;
+      document.getElementById("certForename").textContent = record.forename || "—";
+      document.getElementById("certSurname").textContent = record.surname || "—";
+
+      const issueDate = parseISODate(record.dateOfIssue);
+      const expiryDate = parseISODate(record.expiry);
+
+      document.getElementById("certIssue").textContent = formatLongDate(issueDate);
+      document.getElementById("certExpiry").textContent = formatLongDate(expiryDate);
+
+      detailsCard.style.display = "block";
+
+      // Check expiry
+      const today = getTodayDateOnly();
+      let isValid = false;
+      if (expiryDate) {
+        // Valid up to and including the expiry date
+        isValid = expiryDate.getTime() >= today.getTime();
+      }
+
+      if (isValid) {
+        // Verified
+        statusIcon.className = "status-icon good";
+        statusIcon.textContent = "✓";
+        statusMain.className = "status-text-main good";
+        statusMain.textContent = "Record verified";
+        statusSub.textContent =
+          "The certificate details below match the academy records.";
+
+        validityNote.textContent =
+          "This certificate is currently valid and has been verified against the academy database.";
+
+        const info = document.createElement("div");
+        info.className = "info-box";
+        info.textContent =
+          "If you have any further questions regarding this certificate, please contact the academy.";
+        messageBox.appendChild(info);
+      } else {
+        // Expired or invalid expiry -> Not verified
+        statusIcon.className = "status-icon bad";
+        statusIcon.textContent = "✗";
+        statusMain.className = "status-text-main bad";
+        statusMain.textContent = "Not verified";
+
+        if (!expiryDate) {
+          statusSub.textContent =
+            "The certificate record was found, but the expiry date is invalid or missing.";
+          validityNote.textContent =
+            "Record not verified due to missing or invalid expiry information.";
+        } else {
+          statusSub.textContent =
+            "The certificate record was found, but the certificate has expired.";
+          validityNote.textContent =
+            "This certificate has passed its expiry date and is no longer considered valid.";
+        }
+
+        const warning = document.createElement("div");
+        warning.className = "warning-box";
+        warning.textContent =
+          "Record not verified. Please contact the academy on +966 0123456789 to confirm the certificate status.";
+        messageBox.appendChild(warning);
+      }
+    }
+
+    // Initialise
+    updateHeaderClock();
+    setInterval(updateHeaderClock, 1000);
+    verifyCertificate();
+  </script>
+</body>
+</html>
