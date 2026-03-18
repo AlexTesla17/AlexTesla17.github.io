@@ -47,17 +47,20 @@ pointer-events:none;
 display:flex;
 align-items:center;
 justify-content:space-between;
-margin-bottom:10px;
 gap:10px;
+margin-bottom:12px;
 }
 
 .title{
-height:60px;
-width:auto;
+max-width:65%;
+height:auto;
+object-fit:contain;
 }
 
 .lastwar{
-height:55px;
+width:80px;
+height:auto;
+flex-shrink:0;
 }
 
 /* MAD KING CHARACTER */
@@ -139,11 +142,11 @@ opacity:0.6;
 }
 
 .title{
-height:48px;
+max-width:60%;
 }
 
 .lastwar{
-height:42px;
+width:60px;
 }
 
 .big{
@@ -170,8 +173,8 @@ left:-40px;
 <div class="wrap">
 
 <div class="header">
-<img src="https://alextesla17.github.io/TheMadKing.png">
-<img src="https://alextesla17.github.io/LastWar.png">
+<img src="https://alextesla17.github.io/TheMadKing.png" class="title">
+<img src="https://alextesla17.github.io/LastWar.png" class="lastwar">
 </div>
 
 <img src="https://alextesla17.github.io/MadKingCharacter.png" class="king">
